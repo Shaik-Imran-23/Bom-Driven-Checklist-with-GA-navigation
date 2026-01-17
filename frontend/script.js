@@ -12,33 +12,48 @@ let imgW = 0;
 let imgH = 0;
 
 /* ================= EXPORT CHECKLIST AS PDF ================= */
+/* ================= EXPORT CHECKLIST AS PDF ================= */
 function exportChecklistPDF() {
   if (!checklistData || checklistData.length === 0) {
     alert("No checklist data to export. Please upload and process BOM first.");
     return;
   }
 
+  const panelNo = document.getElementById("bomPanelNo")?.value.trim();
+  if (!panelNo) {
+    alert("Please enter BOM Panel No before exporting.");
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
 
-  // Title
+  // ===== Title =====
   doc.setFontSize(18);
   doc.setTextColor(102, 126, 234);
   doc.text('Digital Panel Inspection - Checklist Report', 15, 20);
 
-  // Date and stats
+  // ===== Panel No & Date =====
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  const today = new Date().toLocaleDateString();
-  doc.text(`Export Date: ${today}`, 15, 28);
 
+  doc.text(`Panel No: ${panelNo}`, 15, 28);
+
+  const today = new Date().toLocaleDateString();
+  doc.text(`Export Date: ${today}`, 15, 34);
+
+  // ===== Stats =====
   const okCount = checklistData.filter(item => item.status === "OK").length;
   const ngCount = checklistData.filter(item => item.status === "NOT OK").length;
   const totalCount = checklistData.length;
 
-  doc.text(`Total Items: ${totalCount} | OK: ${okCount} | NOT OK: ${ngCount}`, 15, 34);
+  doc.text(
+    `Total Items: ${totalCount} | OK: ${okCount} | NOT OK: ${ngCount}`,
+    15,
+    40
+  );
 
-  // Prepare table data
+  // ===== Table Data =====
   const tableData = checklistData.map(item => [
     item["FIND NUMBER"] || "",
     item["PART DESCRIPTION"] || "",
@@ -46,17 +61,16 @@ function exportChecklistPDF() {
     item.remarks || ""
   ]);
 
-  // Create table
+  // ===== Table =====
   doc.autoTable({
-    startY: 40,
+    startY: 46,
     head: [['FIND NUMBER', 'PART DESCRIPTION', 'STATUS', 'REMARKS']],
     body: tableData,
     theme: 'striped',
     headStyles: {
       fillColor: [102, 126, 234],
       textColor: 255,
-      fontStyle: 'bold',
-      halign: 'left'
+      fontStyle: 'bold'
     },
     columnStyles: {
       0: { cellWidth: 30 },
@@ -72,37 +86,36 @@ function exportChecklistPDF() {
     alternateRowStyles: {
       fillColor: [245, 247, 250]
     },
-    didParseCell: function(data) {
-      // Color code status column
+    didParseCell: function (data) {
       if (data.column.index === 2 && data.section === 'body') {
-        const status = data.cell.raw;
-        if (status === 'OK') {
-          data.cell.styles.textColor = [16, 185, 129]; // Green
+        if (data.cell.raw === 'OK') {
+          data.cell.styles.textColor = [16, 185, 129];
           data.cell.styles.fontStyle = 'bold';
-        } else if (status === 'NOT OK') {
-          data.cell.styles.textColor = [239, 68, 68]; // Red
+        }
+        if (data.cell.raw === 'NOT OK') {
+          data.cell.styles.textColor = [239, 68, 68];
           data.cell.styles.fontStyle = 'bold';
         }
       }
     }
   });
 
-  // Footer
+  // ===== Footer =====
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `Page ${i} of ${pageCount}`,
+      `Panel No: ${panelNo}  |  Page ${i} of ${pageCount}`,
       doc.internal.pageSize.width / 2,
       doc.internal.pageSize.height - 10,
       { align: 'center' }
     );
   }
 
-  // Save PDF
-  doc.save(`checklist_report_${new Date().toISOString().slice(0,10)}.pdf`);
+  // ===== Save =====
+  doc.save(`checklist_${panelNo}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 /* ================= EXPORT CHECKLIST AS CSV (BACKUP) ================= */
@@ -214,6 +227,27 @@ function renderChecklist() {
   });
 }
 
+
+function validatePanelNumbers() {
+  const bomPanelNo = document.getElementById("bomPanelNo")?.value.trim();
+  const gaPanelNo = document.getElementById("gaPanelNo")?.value.trim();
+
+  if (!bomPanelNo || !gaPanelNo) {
+    alert("Please enter both BOM Panel No and GA Panel No.");
+    return false;
+  }
+
+  if (bomPanelNo !== gaPanelNo) {
+    alert(
+      "Panel No mismatch!\n\nBOM Panel No and GA Panel No must be identical to proceed."
+    );
+    return false;
+  }
+
+  return true;
+}
+
+
 /* ================= STATS ================= */
 function updateStats() {
   const okCount = checklistData.filter(item => item.status === "OK").length;
@@ -263,6 +297,7 @@ async function loadDetails(findNumber) {
 
 /* ================= GA UPLOAD ================= */
 async function uploadGA() {
+  if (!validatePanelNumbers()) return;
   const file = document.getElementById("gaFile").files[0];
   if (!file) return alert("Select GA file");
 

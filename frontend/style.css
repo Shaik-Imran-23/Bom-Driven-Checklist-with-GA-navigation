@@ -114,6 +114,20 @@ body {
   height: 0;
 }
 
+.inline-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inline-input-row .file-input-wrapper {
+  margin-bottom: 0;   /* prevents height increase */
+}
+
+.inline-input-row .remarks-input {
+  flex: 1;
+}
+
 .file-label {
   padding: 8px 16px;
   background: white;
